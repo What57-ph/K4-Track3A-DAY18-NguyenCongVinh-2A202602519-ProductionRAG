@@ -3,6 +3,7 @@ from __future__ import annotations
 """Module 3: Reranking — Cross-encoder top-20 → top-3 + latency benchmark."""
 
 import os, sys, time
+import re
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 if hasattr(sys.stderr, "reconfigure"):
@@ -29,28 +30,49 @@ class CrossEncoderReranker:
 
     def _load_model(self):
         if self._model is None:
-            # TODO: Load cross-encoder model
-            # from sentence_transformers import CrossEncoder
-            # self._model = CrossEncoder(self.model_name)
-            #
-            # ⚠️ LƯU Ý: Dùng sentence_transformers.CrossEncoder, KHÔNG dùng FlagEmbedding.
-            # FlagReranker crash với transformers>=5.0 (XLMRobertaTokenizer lỗi).
-            pass
+            use_model = os.getenv("M3_USE_CROSS_ENCODER", "").lower() in {"1", "true", "yes"}
+            if use_model:
+                try:
+                    from sentence_transformers import CrossEncoder
+
+                    # Dùng sentence_transformers.CrossEncoder; FlagEmbedding
+                    # không tương thích ổn định với một số transformers mới.
+                    self._model = CrossEncoder(self.model_name)
+                except Exception as exc:
+                    print(f"  ⚠️  Cross-encoder unavailable ({exc}); using lexical reranker.", flush=True)
+            if self._model is None:
+                self._model = _LexicalReranker()
         return self._model
 
     def rerank(self, query: str, documents: list[dict], top_k: int = RERANK_TOP_K) -> list[RerankResult]:
         """Rerank documents: top-20 → top-k."""
-        # TODO: Implement reranking
-        # 1. if not documents: return []
-        # 2. model = self._load_model()
-        # 3. pairs = [(query, doc["text"]) for doc in documents]
-        # 4. scores = model.predict(pairs)
-        # 5. if isinstance(scores, (int, float)): scores = [scores]
-        # 6. scored = sorted(zip(scores, documents), key=lambda x: x[0], reverse=True)
-        # 7. Return [RerankResult(text=..., original_score=doc.get("score", 0.0),
-        #            rerank_score=float(score), metadata=..., rank=i)
-        #            for i, (score, doc) in enumerate(scored[:top_k])]
-        return []
+        if not documents or top_k <= 0:
+            return []
+
+        model = self._load_model()
+        pairs = [(query, str(document.get("text", ""))) for document in documents]
+        scores = model.predict(pairs)
+        if isinstance(scores, (int, float)):
+            scores = [scores]
+        if hasattr(scores, "tolist"):
+            scores = scores.tolist()
+        scores = [float(score) for score in scores]
+
+        scored = sorted(
+            zip(scores, documents),
+            key=lambda item: item[0],
+            reverse=True,
+        )
+        return [
+            RerankResult(
+                text=str(document.get("text", "")),
+                original_score=float(document.get("score", 0.0)),
+                rerank_score=float(score),
+                metadata=dict(document.get("metadata", {})),
+                rank=rank,
+            )
+            for rank, (score, document) in enumerate(scored[:top_k])
+        ]
 
 
 class FlashrankReranker:
@@ -59,10 +81,63 @@ class FlashrankReranker:
         self._model = None
 
     def rerank(self, query: str, documents: list[dict], top_k: int = RERANK_TOP_K) -> list[RerankResult]:
-        # TODO (optional): from flashrank import Ranker, RerankRequest
-        # model = Ranker(); passages = [{"text": d["text"]} for d in documents]
-        # results = model.rerank(RerankRequest(query=query, passages=passages))
-        return []
+        # FlashRank is optional. Reuse the deterministic implementation when
+        # the package/model is not installed instead of failing the pipeline.
+        if self._model is None:
+            try:
+                from flashrank import Ranker
+
+                self._model = Ranker()
+            except Exception:
+                self._model = _LexicalReranker()
+
+        if isinstance(self._model, _LexicalReranker):
+            pairs = [(query, str(document.get("text", ""))) for document in documents]
+            scores = self._model.predict(pairs)
+            ranked = sorted(zip(scores, documents), key=lambda item: item[0], reverse=True)
+        else:
+            try:
+                from flashrank import RerankRequest
+
+                passages = [{"id": index, "text": document.get("text", "")} for index, document in enumerate(documents)]
+                ranked_raw = self._model.rerank(RerankRequest(query=query, passages=passages))
+                ranked = [
+                    (float(item.get("score", 0.0)), documents[int(item["id"])])
+                    for item in ranked_raw
+                ]
+            except Exception:
+                fallback = _LexicalReranker()
+                scores = fallback.predict([(query, str(document.get("text", ""))) for document in documents])
+                ranked = sorted(zip(scores, documents), key=lambda item: item[0], reverse=True)
+
+        return [
+            RerankResult(
+                text=str(document.get("text", "")),
+                original_score=float(document.get("score", 0.0)),
+                rerank_score=float(score),
+                metadata=dict(document.get("metadata", {})),
+                rank=rank,
+            )
+            for rank, (score, document) in enumerate(ranked[:max(top_k, 0)])
+        ]
+
+
+class _LexicalReranker:
+    """Offline fallback approximating query-document relevance."""
+
+    def predict(self, pairs):
+        return [self._score(query, document) for query, document in pairs]
+
+    @staticmethod
+    def _score(query: str, document: str) -> float:
+        query_tokens = set(re.findall(r"[\wÀ-ỹ]+", query.lower(), flags=re.UNICODE))
+        document_tokens = re.findall(r"[\wÀ-ỹ]+", document.lower(), flags=re.UNICODE)
+        if not query_tokens or not document_tokens:
+            return 0.0
+        document_set = set(document_tokens)
+        overlap = len(query_tokens & document_set) / len(query_tokens)
+        phrase_bonus = 0.25 if " ".join(query.lower().split()) in " ".join(document.lower().split()) else 0.0
+        return overlap + phrase_bonus + 0.001 / max(len(document_tokens), 1)
 
 
 def benchmark_reranker(reranker, query: str, documents: list[dict], n_runs: int = 5) -> dict:

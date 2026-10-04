@@ -1,0 +1,91 @@
+{
+  "aggregate": {
+    "faithfulness": 0.8764,
+    "answer_relevancy": 0.5277,
+    "context_precision": 1.0,
+    "context_recall": 0.8969
+  },
+  "num_questions": 20,
+  "failures": [
+    {
+      "question": "Nhân viên được nghỉ bao nhiêu ngày phép năm?",
+      "worst_metric": "answer_relevancy",
+      "score": 0.0,
+      "average_score": 0.4964,
+      "diagnosis": "The answer does not directly address the question.",
+      "suggested_fix": "Improve the answer prompt and require a concise response to the query."
+    },
+    {
+      "question": "Lương thử việc của nhân viên Junior mức cao nhất là bao nhiêu?",
+      "worst_metric": "answer_relevancy",
+      "score": 0.0,
+      "average_score": 0.5417,
+      "diagnosis": "The answer does not directly address the question.",
+      "suggested_fix": "Improve the answer prompt and require a concise response to the query."
+    },
+    {
+      "question": "Thông tin lương thuộc cấp độ phân loại dữ liệu nào?",
+      "worst_metric": "answer_relevancy",
+      "score": 0.0,
+      "average_score": 0.6288,
+      "diagnosis": "The answer does not directly address the question.",
+      "suggested_fix": "Improve the answer prompt and require a concise response to the query."
+    },
+    {
+      "question": "Một nhân viên Senior có 9 năm thâm niên được nghỉ bao nhiêu ngày phép năm và lương trong khoảng nào?",
+      "worst_metric": "context_recall",
+      "score": 0.5455,
+      "average_score": 0.726,
+      "diagnosis": "Relevant information is missing from the retrieved chunks.",
+      "suggested_fix": "Improve chunking, add BM25/hybrid retrieval, or increase retrieval top-k."
+    },
+    {
+      "question": "Nếu cần mua một chiếc laptop 30 triệu cho nhân viên mới, ai phê duyệt và cần gì từ phòng CNTT?",
+      "worst_metric": "answer_relevancy",
+      "score": 0.3454,
+      "average_score": 0.7969,
+      "diagnosis": "The answer does not directly address the question.",
+      "suggested_fix": "Improve the answer prompt and require a concise response to the query."
+    },
+    {
+      "question": "Nhân viên được tài trợ khóa học 25 triệu, nghỉ việc sau 8 tháng hoàn thành khóa học. Phải hoàn trả bao nhiêu?",
+      "worst_metric": "answer_relevancy",
+      "score": 0.4571,
+      "average_score": 0.807,
+      "diagnosis": "The answer does not directly address the question.",
+      "suggested_fix": "Improve the answer prompt and require a concise response to the query."
+    },
+    {
+      "question": "Nhân viên tạm ứng 15 triệu, sau 20 ngày mới thanh toán. Bị phạt bao nhiêu?",
+      "worst_metric": "answer_relevancy",
+      "score": 0.6829,
+      "average_score": 0.8103,
+      "diagnosis": "The answer does not directly address the question.",
+      "suggested_fix": "Improve the answer prompt and require a concise response to the query."
+    },
+    {
+      "question": "Muốn mua thiết bị trị giá 55 triệu cần ai phê duyệt?",
+      "worst_metric": "answer_relevancy",
+      "score": 0.3365,
+      "average_score": 0.8341,
+      "diagnosis": "The answer does not directly address the question.",
+      "suggested_fix": "Improve the answer prompt and require a concise response to the query."
+    },
+    {
+      "question": "Có cần kích hoạt xác thực đa yếu tố (MFA) không?",
+      "worst_metric": "answer_relevancy",
+      "score": 0.4201,
+      "average_score": 0.8378,
+      "diagnosis": "The answer does not directly address the question.",
+      "suggested_fix": "Improve the answer prompt and require a concise response to the query."
+    },
+    {
+      "question": "Bao lâu phải đổi mật khẩu một lần?",
+      "worst_metric": "answer_relevancy",
+      "score": 0.5091,
+      "average_score": 0.8659,
+      "diagnosis": "The answer does not directly address the question.",
+      "suggested_fix": "Improve the answer prompt and require a concise response to the query."
+    }
+  ]
+}
